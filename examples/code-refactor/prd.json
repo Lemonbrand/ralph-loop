@@ -1,0 +1,82 @@
+{
+  "name": "API Auth Hardening",
+  "description": "Harden authentication: rate limiting, token rotation, password reset expiry, audit logging",
+  "branchName": "ralph/auth-hardening",
+  "targetRepo": "/Users/you/your-api",
+  "phases": [
+    {
+      "name": "Security Fixes",
+      "description": "Critical security hardening for auth endpoints",
+      "phaseGate": true,
+      "stories": [
+        {
+          "id": "SEC-001",
+          "title": "Add rate limiting to login endpoint",
+          "description": "Add express-rate-limit middleware to POST /api/auth/login. 5 attempts per IP per 15 minutes. Return 429 with Retry-After header.",
+          "acceptance": [
+            "Rate limiter applied to login route only",
+            "429 response includes Retry-After header",
+            "Existing tests still pass",
+            "New test covers rate limit trigger"
+          ],
+          "files": ["src/routes/auth.ts", "src/middleware/rate-limit.ts"],
+          "dependsOn": [],
+          "passes": false,
+          "priority": 1
+        },
+        {
+          "id": "SEC-002",
+          "title": "Add password reset token expiry",
+          "description": "Password reset tokens currently never expire. Add 1-hour expiry. Add created_at column to password_reset_tokens table. Check expiry on verification.",
+          "acceptance": [
+            "New Prisma migration adds created_at with default NOW()",
+            "Reset token verification rejects tokens older than 1 hour",
+            "Expired token returns 410 Gone with descriptive message",
+            "New test covers expired token rejection"
+          ],
+          "files": ["src/routes/auth.ts", "prisma/schema.prisma"],
+          "dependsOn": [],
+          "passes": false,
+          "priority": 2
+        },
+        {
+          "id": "SEC-003",
+          "title": "Add JWT refresh token rotation",
+          "description": "Implement refresh token rotation. On refresh, invalidate the old token and issue a new pair. Store token family to detect reuse attacks.",
+          "acceptance": [
+            "Refresh endpoint issues new access + refresh token pair",
+            "Old refresh token is invalidated after use",
+            "Reuse of invalidated token revokes entire token family",
+            "Tests cover: normal rotation, reuse detection, family revocation"
+          ],
+          "files": ["src/routes/auth.ts", "src/services/token.ts"],
+          "dependsOn": ["SEC-001"],
+          "passes": false,
+          "priority": 3
+        }
+      ]
+    },
+    {
+      "name": "Audit & Monitoring",
+      "description": "Add auth event logging for security monitoring",
+      "phaseGate": true,
+      "stories": [
+        {
+          "id": "AUDIT-001",
+          "title": "Add auth event audit log",
+          "description": "Log all auth events (login success/failure, token refresh, password reset request/completion) to a new audit_logs table. Include: event_type, user_id, ip_address, user_agent, timestamp.",
+          "acceptance": [
+            "audit_logs table created via Prisma migration",
+            "All auth events logged with required fields",
+            "Audit log does not contain passwords or tokens",
+            "Query endpoint for admin: GET /api/admin/audit-logs (paginated)"
+          ],
+          "files": ["src/services/audit.ts", "src/routes/admin.ts"],
+          "dependsOn": ["SEC-003"],
+          "passes": false,
+          "priority": 4
+        }
+      ]
+    }
+  ]
+}

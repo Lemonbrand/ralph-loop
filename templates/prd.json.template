@@ -1,0 +1,28 @@
+{
+  "name": "{PROJECT_NAME}",
+  "description": "{PROJECT_DESCRIPTION}",
+  "branchName": "ralph/{BRANCH_SLUG}",
+  "targetRepo": "{TARGET_REPO_PATH}",
+  "phases": [
+    {
+      "name": "{PHASE_NAME}",
+      "description": "{PHASE_DESCRIPTION}",
+      "phaseGate": true,
+      "stories": [
+        {
+          "id": "{PREFIX}-001",
+          "title": "{STORY_TITLE}",
+          "description": "{STORY_DESCRIPTION}",
+          "acceptance": [
+            "{CRITERION_1}",
+            "{CRITERION_2}"
+          ],
+          "files": [],
+          "dependsOn": [],
+          "passes": false,
+          "priority": 1
+        }
+      ]
+    }
+  ]
+}

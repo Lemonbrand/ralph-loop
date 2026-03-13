@@ -1,0 +1,80 @@
+{
+  "name": "Cloud Resource Cleanup",
+  "description": "Decommission unused droplets, clean up SSH artifacts, document infrastructure state",
+  "branchName": "ralph/infra-cleanup",
+  "targetRepo": "/Users/you/your-project",
+  "phases": [
+    {
+      "name": "Reconnaissance",
+      "description": "Verify current state before making changes. Read-only.",
+      "phaseGate": false,
+      "stories": [
+        {
+          "id": "RECON-001",
+          "title": "Audit current cloud resources",
+          "description": "Run doctl to list all droplets, volumes, snapshots, firewalls. Document which are active vs. dead. Check SSH keys and their references.",
+          "acceptance": [
+            "All droplets listed with status, IP, cost",
+            "Dead resources identified and confirmed",
+            "SSH key references documented",
+            "Production droplet confirmed as keeper"
+          ],
+          "files": [],
+          "dependsOn": [],
+          "passes": false,
+          "priority": 1
+        }
+      ]
+    },
+    {
+      "name": "Decommission",
+      "description": "Delete dead resources and clean up artifacts.",
+      "phaseGate": true,
+      "stories": [
+        {
+          "id": "DECOM-001",
+          "title": "Delete staging droplet",
+          "description": "Delete the staging droplet (ID: 67890). Remove associated SSH key and known_hosts entries. Verify only production remains.",
+          "acceptance": [
+            "Staging droplet deleted",
+            "SSH key removed",
+            "known_hosts cleaned",
+            "doctl list shows only production"
+          ],
+          "files": [],
+          "dependsOn": ["RECON-001"],
+          "passes": false,
+          "priority": 2
+        },
+        {
+          "id": "DECOM-002",
+          "title": "Delete dev droplet",
+          "description": "Delete the dev droplet (ID: 11111). Remove associated SSH key and known_hosts entries.",
+          "acceptance": [
+            "Dev droplet deleted",
+            "SSH key removed",
+            "known_hosts cleaned"
+          ],
+          "files": [],
+          "dependsOn": ["RECON-001"],
+          "passes": false,
+          "priority": 3
+        },
+        {
+          "id": "LOG-001",
+          "title": "Create infrastructure inventory",
+          "description": "Create ops/infrastructure.json documenting all remaining resources: droplets, SSH keys, DNS, services.",
+          "acceptance": [
+            "ops/infrastructure.json exists with valid JSON",
+            "All active resources documented",
+            "All entries verified against actual state"
+          ],
+          "files": ["ops/infrastructure.json"],
+          "dependsOn": ["DECOM-001", "DECOM-002"],
+          "passes": false,
+          "priority": 4
+        }
+      ]
+    }
+  ]
+}
