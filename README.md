@@ -239,11 +239,21 @@ You can also install this as a Claude Code skill for in-session loop creation:
 2. Reference it in your CLAUDE.md
 3. Type `/create-ralph-loop` in a session to scaffold a new loop interactively
 
+## Want agents working in your business?
+
+This framework is how I build. If you're looking at your workflows and wondering where autonomous agents would actually make a difference, I do free 30-minute agentic audits: I look at what your team does day to day, identify the 2-3 processes where agents would have the highest impact, and show you what the first build looks like.
+
+No pitch, no deck. Just a screen share where I map out what's possible.
+
+**[Book a free agentic audit](https://cal.com/lemonbrand/coffee)** · [See an agent in action](https://lemonbrand.io/free/pipeline) · [lemonbrand.io](https://lemonbrand.io)
+
 ## Related projects
 
+- [Research Agent](https://github.com/Lemonbrand/research-agent): Autonomous research agent built on Ralph Loop. Scans sources, builds a knowledge graph, delivers intelligence briefs through your analytical framework. $5.11/run.
 - [snarktank/ralph](https://github.com/snarktank/ralph): The original by Ryan Carson. Fresh-context-per-iteration autonomous loops. Start here if you want the simplest version.
 - [nono](https://github.com/always-further/nono): OS-level sandboxing for AI agents by Luke Hinds. Optional, recommended for anything running autonomously.
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code): Anthropic's CLI. `--dangerously-skip-permissions` enables autonomous operation (required for Ralph loops).
+- [Lemonbrand](https://lemonbrand.io): Teaching people how to build with agents. Course, consulting, open source tools.
 
 ## Common questions
 
