@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ralph Loop: How It Works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: hsl(225, 25%, 8%);
+    --surface: hsl(225, 20%, 12%);
+    --surface-raised: hsl(225, 18%, 15%);
+    --border: hsl(225, 15%, 18%);
+    --border-subtle: hsl(225, 12%, 14%);
+    --text: hsl(45, 20%, 95%);
+    --text-muted: hsl(199, 6%, 55%);
+    --accent: hsl(32, 95%, 55%);
+    --accent-glow: hsla(32, 95%, 55%, 0.15);
+    --accent-soft: hsl(32, 60%, 25%);
+    --green: hsl(145, 63%, 45%);
+    --green-glow: hsla(145, 63%, 45%, 0.12);
+    --red: hsl(0, 62%, 55%);
+    --blue: hsl(207, 60%, 55%);
+    --blue-glow: hsla(207, 60%, 55%, 0.12);
+    --font-display: 'Outfit', system-ui, sans-serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 60px 40px 80px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+
+  .header h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 3.2rem;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+
+  .header h1 span {
+    color: var(--accent);
+  }
+
+  .header p {
+    font-size: 1.15rem;
+    color: var(--text-muted);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .header .tag {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    background: var(--accent-glow);
+    border: 1px solid var(--accent-soft);
+    padding: 4px 12px;
+    border-radius: 100px;
+    margin-bottom: 20px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* Section labels */
+  .section-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label .num {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    background: var(--accent-glow);
+    border: 1px solid var(--accent-soft);
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* The loop */
+  .loop-section {
+    margin-bottom: 72px;
+  }
+
+  .loop-track {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .loop-step {
+    flex: 1;
+    min-width: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    padding: 0 8px;
+  }
+
+  .loop-step .icon-wrap {
+    width: 72px;
+    height: 72px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    position: relative;
+    z-index: 2;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .loop-step:hover .icon-wrap {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+
+  .loop-step .icon-wrap img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+  }
+
+  .loop-step .step-label {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+
+  .loop-step .step-desc {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.4;
+    max-width: 110px;
+  }
+
+  /* Connector arrows */
+  .loop-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 36px;
+    right: -2px;
+    width: 20px;
+    height: 2px;
+    background: var(--border);
+    z-index: 1;
+  }
+
+  .loop-step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    top: 32px;
+    right: -6px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--text-muted);
+    border-bottom: 2px solid var(--text-muted);
+    transform: rotate(-45deg);
+    z-index: 3;
+    opacity: 0.5;
+  }
+
+  /* Loop-back arrow */
+  .loop-return {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 20px;
+    gap: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+
+  .loop-return .arrow-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), var(--border), transparent);
+  }
+
+  .loop-return .loop-label {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 6px 16px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+
+  /* Phase gate section */
+  .phases-section {
+    margin-bottom: 72px;
+  }
+
+  .phase-track {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  .phase-block {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    position: relative;
+  }
+
+  .phase-block.active {
+    border-color: var(--accent-soft);
+    box-shadow: 0 0 40px var(--accent-glow);
+  }
+
+  .phase-block .phase-name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 4px;
+  }
+
+  .phase-block .phase-tag {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+  }
+
+  .phase-block .phase-tag.no-gate { color: var(--text-muted); }
+  .phase-block .phase-tag.gate { color: var(--accent); }
+
+  .phase-block .story-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .phase-block .story-list li {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 6px 10px;
+    background: var(--bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+  }
+
+  .phase-block .story-list li .check {
+    color: var(--green);
+    margin-right: 4px;
+  }
+
+  /* Gate divider */
+  .gate-divider {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .gate-divider .gate-icon {
+    width: 52px;
+    height: 52px;
+    background: var(--accent-glow);
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .gate-divider .gate-icon img {
+    width: 28px;
+    height: 28px;
+  }
+
+  .gate-divider .gate-label {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+  }
+
+  .gate-divider .gate-line {
+    width: 2px;
+    height: 8px;
+    background: var(--accent-soft);
+  }
+
+  /* Flow arrow between phases */
+  .flow-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .flow-arrow .arrow-body {
+    width: 24px;
+    height: 2px;
+    background: var(--border);
+  }
+
+  /* Files section */
+  .files-section {
+    margin-bottom: 72px;
+  }
+
+  .file-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+  }
+
+  .file-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 16px 20px;
+    text-align: center;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.25s;
+  }
+
+  .file-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-soft);
+  }
+
+  .file-card img {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+  }
+
+  .file-card .file-name {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .file-card .file-desc {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .footer .repo-link {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--accent);
+    text-decoration: none;
+    padding: 10px 24px;
+    border: 1px solid var(--accent-soft);
+    border-radius: 100px;
+    display: inline-block;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .footer .repo-link:hover {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  .footer p {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 16px;
+    font-family: var(--font-body);
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .file-grid { grid-template-columns: repeat(3, 1fr); }
+    .phase-track { flex-direction: column; gap: 16px; }
+    .gate-divider { flex-direction: row; padding: 8px 0; }
+    .gate-divider .gate-line { width: 8px; height: 2px; }
+    .flow-arrow { flex-direction: row; padding: 8px 0; }
+    .flow-arrow .arrow-body { width: 2px; height: 24px; }
+  }
+
+  @media (max-width: 640px) {
+    .page { padding: 32px 20px 60px; }
+    .header h1 { font-size: 2.2rem; }
+    .loop-track { flex-wrap: wrap; gap: 16px; justify-content: center; }
+    .loop-step::after, .loop-step::before { display: none; }
+    .file-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="tag">open source</div>
+    <h1>Ralph <span>Loop</span></h1>
+    <p>Give Claude Code a task list. Walk away. Come back to commits, progress logs, and finished work.</p>
+  </div>
+
+  <!-- The Inner Loop -->
+  <div class="loop-section">
+    <div class="section-label">
+      <span class="num">1</span>
+      The Inner Loop (one iteration)
+    </div>
+    <div class="loop-track">
+      <div class="loop-step">
+        <div class="icon-wrap">
+          <img src="assets/3dicons-notebook-dynamic-color.png" alt="Read PRD">
+        </div>
+        <div class="step-label">Read PRD</div>
+        <div class="step-desc">Find next incomplete story</div>
+      </div>
+      <div class="loop-step">
+        <div class="icon-wrap">
+          <img src="assets/3dicons-link-dynamic-color.png" alt="Branch">
+        </div>
+        <div class="step-label">Branch</div>
+        <div class="step-desc">Create feature branch</div>
+      </div>
+      <div class="loop-step">
+        <div class="icon-wrap">
+          <img src="assets/3dicons-tools-dynamic-color.png" alt="Work">
+        </div>
+        <div class="step-label">Work</div>
+        <div class="step-desc">Write code, make changes</div>
+      </div>
+      <div class="loop-step">
+        <div class="icon-wrap">
+          <img src="assets/3dicons-shield-dynamic-color.png" alt="Check">
+        </div>
+        <div class="step-label">Check</div>
+        <div class="step-desc">Typecheck, lint, tests</div>
+      </div>
+      <div class="loop-step">
+        <div class="icon-wrap">
+          <img src="assets/3dicons-zoom-dynamic-color.png" alt="Review">
+        </div>
+        <div class="step-label">Review</div>
+        <div class="step-desc">Self-review the diff</div>
+      </div>
+      <div class="loop-step">
+        <div class="icon-wrap">
+          <img src="assets/3dicons-thumb-up-dynamic-color.png" alt="Merge">
+        </div>
+        <div class="step-label">Merge</div>
+        <div class="step-desc">Merge back, mark done</div>
+      </div>
+      <div class="loop-step">
+        <div class="icon-wrap">
+          <img src="assets/3dicons-copy-dynamic-color.png" alt="Log">
+        </div>
+        <div class="step-label">Log</div>
+        <div class="step-desc">Write to progress.txt</div>
+      </div>
+    </div>
+    <div class="loop-return">
+      <span class="arrow-line"></span>
+      <span class="loop-label">fresh instance picks up next story</span>
+      <span class="arrow-line"></span>
+    </div>
+  </div>
+
+  <!-- Phase Gates -->
+  <div class="phases-section">
+    <div class="section-label">
+      <span class="num">2</span>
+      Phase Gates (you stay in control)
+    </div>
+    <div class="phase-track">
+      <div class="phase-block">
+        <div class="phase-name">Phase 0: Research</div>
+        <div class="phase-tag no-gate">no gate (flows through)</div>
+        <ul class="story-list">
+          <li><span class="check">&#10003;</span> RECON-001: Audit current state</li>
+          <li><span class="check">&#10003;</span> RECON-002: Research options</li>
+        </ul>
+      </div>
+
+      <div class="flow-arrow"><div class="arrow-body"></div></div>
+
+      <div class="phase-block active">
+        <div class="phase-name">Phase 1: Build</div>
+        <div class="phase-tag gate">phase gate</div>
+        <ul class="story-list">
+          <li><span class="check">&#10003;</span> IMPL-001: Add rate limiting</li>
+          <li><span class="check">&#10003;</span> IMPL-002: Token expiry</li>
+          <li><span class="check">&#10003;</span> IMPL-003: Refresh rotation</li>
+        </ul>
+      </div>
+
+      <div class="gate-divider">
+        <div class="gate-line"></div>
+        <div class="gate-icon">
+          <img src="assets/3dicons-pause-dynamic-color.png" alt="Gate">
+        </div>
+        <div class="gate-label">You review</div>
+        <div class="gate-line"></div>
+      </div>
+
+      <div class="phase-block">
+        <div class="phase-name">Phase 2: Polish</div>
+        <div class="phase-tag gate">phase gate</div>
+        <ul class="story-list">
+          <li>CLEAN-001: Audit logging</li>
+          <li>CLEAN-002: Error messages</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Five Files -->
+  <div class="files-section">
+    <div class="section-label">
+      <span class="num">3</span>
+      Five files. That's the whole thing.
+    </div>
+    <div class="file-grid">
+      <div class="file-card">
+        <img src="assets/3dicons-file-dynamic-color.png" alt="CLAUDE.md">
+        <div class="file-name">CLAUDE.md</div>
+        <div class="file-desc">Agent instructions, safety rails, build gates</div>
+      </div>
+      <div class="file-card">
+        <img src="assets/3dicons-notebook-dynamic-color.png" alt="prd.json">
+        <div class="file-name">prd.json</div>
+        <div class="file-desc">Stories with acceptance criteria, grouped into phases</div>
+      </div>
+      <div class="file-card">
+        <img src="assets/3dicons-copy-dynamic-color.png" alt="progress.txt">
+        <div class="file-name">progress.txt</div>
+        <div class="file-desc">Append-only log (memory between iterations)</div>
+      </div>
+      <div class="file-card">
+        <img src="assets/3dicons-rocket-dynamic-color.png" alt="ralph.sh">
+        <div class="file-name">ralph.sh</div>
+        <div class="file-desc">The runner. Same file across all loops</div>
+      </div>
+      <div class="file-card">
+        <img src="assets/3dicons-setting-dynamic-color.png" alt="monitor.sh">
+        <div class="file-name">monitor.sh</div>
+        <div class="file-desc">Voice alerts via macOS say (optional)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <a href="https://github.com/Lemonbrand/ralph-loop" class="repo-link">github.com/Lemonbrand/ralph-loop</a>
+    <p>MIT licensed. Clone it, use it, break it.</p>
+  </div>
+
+</div>
+</body>
+</html>
