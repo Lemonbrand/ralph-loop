@@ -1,5 +1,7 @@
 # Ralph Loop
 
+![Ralph Loop Diagram](ralph-loop_diagram.html.png)
+
 Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) on autopilot. Give it a list of tasks, walk away, come back to finished work.
 
 Ralph spawns a fresh Claude Code instance for each task. No context bleed between stories. The agent reads the task, does the work, checks itself, commits, logs what happened, and exits. Next instance picks up the next task.
