@@ -1,25 +1,16 @@
 #!/bin/bash
 # Ralph Loop Runner
-# Spawns fresh AI agent instances to work through a PRD, one story per iteration.
-# Usage: ./ralph.sh [--tool amp|claude] [--no-sandbox] [max_iterations]
+# Spawns fresh Claude Code instances to work through a PRD, one story per iteration.
+# Usage: ./ralph.sh [--no-sandbox] [max_iterations]
 
 set -e
 
 # Parse arguments
-TOOL="claude"
 MAX_ITERATIONS=10
 NO_SANDBOX=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --tool)
-      TOOL="$2"
-      shift 2
-      ;;
-    --tool=*)
-      TOOL="${1#*=}"
-      shift
-      ;;
     --no-sandbox)
       NO_SANDBOX=true
       shift
@@ -32,12 +23,6 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-
-# Validate tool choice
-if [[ "$TOOL" != "amp" && "$TOOL" != "claude" ]]; then
-  echo "Error: Invalid tool '$TOOL'. Must be 'amp' or 'claude'."
-  exit 1
-fi
 
 # nono sandbox detection (optional, install via: brew install nono)
 NONO_CMD=""
@@ -101,19 +86,15 @@ fi
 # export GIT_CONFIG_KEY_1="commit.gpgsign"
 # export GIT_CONFIG_VALUE_1="false"
 
-echo "Starting Ralph - Tool: $TOOL - Max iterations: $MAX_ITERATIONS"
+echo "Starting Ralph - Max iterations: $MAX_ITERATIONS"
 
 for i in $(seq 1 $MAX_ITERATIONS); do
   echo ""
   echo "==============================================================="
-  echo "  Ralph Iteration $i of $MAX_ITERATIONS ($TOOL)"
+  echo "  Ralph Iteration $i of $MAX_ITERATIONS"
   echo "==============================================================="
 
-  if [[ "$TOOL" == "amp" ]]; then
-    OUTPUT=$(cat "$SCRIPT_DIR/prompt.md" | $NONO_CMD amp --dangerously-allow-all 2>&1 | tee /dev/stderr) || true
-  else
-    OUTPUT=$(unset CLAUDECODE; $NONO_CMD claude --dangerously-skip-permissions -p "$(cat "$SCRIPT_DIR/CLAUDE.md")" 2>&1 | tee /dev/stderr) || true
-  fi
+  OUTPUT=$(unset CLAUDECODE; $NONO_CMD claude --dangerously-skip-permissions -p "$(cat "$SCRIPT_DIR/CLAUDE.md")" 2>&1 | tee /dev/stderr) || true
 
   # Check for completion
   if echo "$OUTPUT" | grep -q "<promise>COMPLETE</promise>"; then

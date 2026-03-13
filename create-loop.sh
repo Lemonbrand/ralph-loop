@@ -311,7 +311,7 @@ ls -1 "$LOOP_DIR" | sed 's/^/    /'
 echo ""
 echo "  Run it:"
 echo "    cd $LOOP_DIR"
-echo "    ./ralph.sh --tool claude 10"
+echo "    ./ralph.sh 10"
 echo ""
 echo "  Edit prd.json to refine stories and acceptance criteria before running."
 echo ""

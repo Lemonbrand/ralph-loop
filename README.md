@@ -1,54 +1,68 @@
 # Ralph Loop
 
-Autonomous AI agent loops with phase gates, voice alerts, and sandboxing. Runs [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or [Amp](https://amp.dev) on autopilot until your PRD is done.
+Run [Claude Code](https://docs.anthropic.com/en/docs/claude-code) on autopilot. Give it a list of tasks, walk away, come back to finished work.
 
-Built on top of [snarktank/ralph](https://github.com/snarktank/ralph) (the original autonomous agent loop by Ryan Carson), this project extends the concept with:
+Ralph spawns a fresh Claude Code instance for each task. No context bleed between stories. The agent reads the task, does the work, checks itself, commits, logs what happened, and exits. Next instance picks up the next task.
 
-- **Phase gates**: pause between phases for human review before proceeding
-- **Voice alerts**: macOS `say` notifications when the loop hits a gate, gets blocked, or finishes
-- **Three modes**: code changes, infrastructure ops, or read-only research
-- **Branch-per-story**: each story gets its own git branch, merged back after checks pass
-- **Sandboxing**: optional [nono](https://github.com/anthropics/nono) integration to restrict file/network access
-- **Headless git auth**: SSH key setup so loops push/pull without interactive auth (1Password, etc.)
+You stay in control through **phase gates**: the loop pauses between phases so you can review before it continues. Your Mac literally says "Ralph hit a phase gate. Needs your review." out loud.
 
-## How It Works
+Built on [snarktank/ralph](https://github.com/snarktank/ralph) by Ryan Carson, extended with phase gates, voice alerts, sandboxing via [nono](https://github.com/always-further/nono), and headless git auth.
 
-A Ralph loop is a directory containing 5 files:
+## What's in a loop
+
+Five files in a directory. That's it.
 
 ```
 scripts/ralph-myproject/
-  CLAUDE.md       # Agent instructions (what to do, how to do it, safety rails)
-  prd.json        # Stories with acceptance criteria, grouped into phases
-  progress.txt    # Append-only log (the agent's memory between iterations)
-  ralph.sh        # The bash runner (same across all loops)
-  monitor.sh      # Optional: voice alerts via macOS say
+  CLAUDE.md       ← what the agent should do (instructions, safety rails)
+  prd.json        ← the task list (stories with acceptance criteria)
+  progress.txt    ← what actually happened (append-only, the agent's memory)
+  ralph.sh        ← the runner (same file across all loops)
+  monitor.sh      ← voice alerts when it needs you (optional)
 ```
 
-The runner (`ralph.sh`) spawns a fresh Claude Code (or Amp) instance per iteration. Each instance:
-
-1. Reads the PRD, finds the next incomplete story
-2. Creates a feature branch
-3. Does the work
-4. Runs build checks (typecheck, tests, etc.)
-5. Self-reviews the diff
-6. Merges back, marks the story as done
-7. Logs what happened to `progress.txt`
-8. Exits. Next iteration picks up the next story.
-
-When all stories in a phase pass, the agent outputs `<promise>PHASE_GATE</promise>` and stops. You review, approve, and re-run. When everything across all phases passes: `<promise>COMPLETE</promise>`.
+## What happens when you run it
 
 ```
-Phase 0: Research (no gate)     Phase 1: Core Work (GATE)     Phase 2: Polish (GATE)
-  ┌─────────────┐                ┌─────────────┐               ┌─────────────┐
-  │ RECON-001   │──flows──into──▶│ IMPL-001    │──stops──for──▶│ CLEAN-001   │
-  │ RECON-002   │                │ IMPL-002    │  human review │ CLEAN-002   │
-  └─────────────┘                │ IMPL-003    │               └─────────────┘
-                                 └─────────────┘
+./ralph.sh --tool claude 10
 ```
 
-## Quickstart
+Each of the 10 iterations:
 
-### Option 1: Use the CLI (recommended)
+```
+  ┌─ Read prd.json, find next incomplete story
+  │
+  ├─ Create a feature branch (story/AUTH-001)
+  │
+  ├─ Do the work
+  │
+  ├─ Run checks (typecheck, tests, whatever you configured)
+  │
+  ├─ Self-review the diff
+  │
+  ├─ Merge back, mark story as done
+  │
+  ├─ Log everything to progress.txt
+  │
+  └─ Exit. Fresh instance picks up next story.
+```
+
+Stories are grouped into phases. When a phase is done, the loop stops:
+
+```
+  Phase 0: Research          Phase 1: Build (GATE)       Phase 2: Polish (GATE)
+  ┌──────────────┐           ┌──────────────┐            ┌──────────────┐
+  │  RECON-001   │──flows───▶│  IMPL-001    │──pauses───▶│  CLEAN-001   │
+  │  RECON-002   │  into     │  IMPL-002    │  for you   │  CLEAN-002   │
+  └──────────────┘           │  IMPL-003    │            └──────────────┘
+                             └──────────────┘
+```
+
+Phase 0 flows straight through (no gate). Phase 1 stops for your review. You look at the code, approve it, re-run. Phase 2 does the same.
+
+## Get started
+
+### Option 1: CLI scaffold (recommended)
 
 ```bash
 git clone https://github.com/Lemonbrand/ralph-loop.git
@@ -56,51 +70,39 @@ cd ralph-loop
 ./create-loop.sh
 ```
 
-The CLI asks you:
-- **Name**: short slug (e.g., "auth-fix", "seo-cleanup")
-- **Goal**: one sentence
-- **Target**: what repo/system the loop modifies
-- **Mode**: `code`, `infra`, or `research`
-- **Stories**: tasks with acceptance criteria
-- **Phase gates**: where to pause for review
+It asks you a few questions (name, goal, what it modifies, what tasks to run), then generates all 5 files into your project.
 
-Then generates all 5 files into `scripts/ralph-{name}/` in your target project.
-
-### Option 2: Copy templates manually
+### Option 2: Copy and edit
 
 ```bash
-cp -r templates/ /path/to/your/project/scripts/ralph-myloop/
-cd /path/to/your/project/scripts/ralph-myloop/
+cp -r templates/ /path/to/your-project/scripts/ralph-myloop/
+chmod +x /path/to/your-project/scripts/ralph-myloop/ralph.sh
 # Edit CLAUDE.md and prd.json for your use case
-chmod +x ralph.sh monitor.sh
 ```
 
 ### Run it
 
 ```bash
 cd scripts/ralph-myloop
-./ralph.sh --tool claude 10    # 10 iterations with Claude Code
-./ralph.sh --tool amp 10       # 10 iterations with Amp
+./ralph.sh --tool claude 10
 ```
 
-Flags:
-- `--tool claude|amp`: which AI tool to use (default: amp)
-- `--no-sandbox`: skip nono sandboxing even if installed
-- Number argument: max iterations (default: 10)
+`--no-sandbox` skips [nono](https://github.com/always-further/nono) sandboxing if installed. The number is max iterations (default 10).
 
-## Writing Good Stories
+## Writing good stories
 
-The biggest factor in loop success is story quality. Each story must be completable in a single AI context window.
+This is where most people mess up. Each story needs to be completable in one Claude Code session. One story, one commit.
 
-**Good stories:**
+Good:
+
 ```json
 {
   "id": "AUTH-001",
   "title": "Add rate limiting to login endpoint",
-  "description": "Add express-rate-limit middleware to POST /api/auth/login. 5 attempts per IP per 15 minutes. Return 429 with retry-after header.",
+  "description": "Add express-rate-limit to POST /api/auth/login. 5 attempts per IP per 15 min. Return 429 with Retry-After header.",
   "acceptance": [
-    "Rate limiter applied to login route only",
-    "429 response includes Retry-After header",
+    "Rate limiter on login route only",
+    "429 includes Retry-After header",
     "Existing tests still pass",
     "New test covers rate limit trigger"
   ],
@@ -110,103 +112,71 @@ The biggest factor in loop success is story quality. Each story must be completa
 }
 ```
 
-**Bad stories** (too big, too vague):
-- "Build the authentication system"
-- "Refactor the codebase"
-- "Make it faster"
+Bad:
 
-Rules of thumb:
-- One story = one commit
-- < 500 lines of change (excluding deletions)
-- 2-4 concrete acceptance criteria
-- Use `dependsOn` when order matters
+- "Build the auth system" (too big)
+- "Refactor the codebase" (too vague)
+- "Make it faster" (no criteria)
 
-## PRD Format
+Keep it under 500 lines of change. 2-4 acceptance criteria. Use `dependsOn` when order matters.
+
+## The PRD file
 
 ```json
 {
-  "name": "Project Name",
-  "description": "What this loop accomplishes",
-  "branchName": "ralph/my-feature",
-  "targetRepo": "/path/to/repo",
+  "name": "Auth Hardening",
+  "branchName": "ralph/auth-hardening",
+  "targetRepo": "/Users/you/your-api",
   "phases": [
     {
-      "name": "Phase Name",
-      "description": "What this phase covers",
+      "name": "Security Fixes",
       "phaseGate": true,
-      "stories": [
-        {
-          "id": "PREFIX-001",
-          "title": "Story title",
-          "description": "Detailed description of what to do",
-          "acceptance": ["criterion 1", "criterion 2"],
-          "files": ["src/relevant-file.ts"],
-          "dependsOn": [],
-          "passes": false,
-          "priority": 1
-        }
-      ]
+      "stories": [ ... ]
     }
   ]
 }
 ```
 
-| Field | Purpose |
-|-------|---------|
-| `id` | Unique story identifier (used in commits, progress log) |
-| `acceptance` | Concrete criteria the agent checks before marking done |
-| `files` | Hints for the agent about which files to read/modify |
-| `dependsOn` | Array of story IDs that must pass first |
-| `passes` | Set to `true` by the agent when done |
-| `priority` | Lower number = higher priority (agent picks lowest available) |
-| `phaseGate` | When `true`, agent stops after all stories in this phase pass |
+| Field | What it does |
+|-------|-------------|
+| `id` | Story identifier. Shows up in commits and progress log |
+| `acceptance` | Concrete checks. The agent verifies these before marking done |
+| `files` | Hints: which files to read or modify |
+| `dependsOn` | Story IDs that must pass first |
+| `passes` | Agent flips to `true` when done |
+| `priority` | Lower = picked first |
+| `phaseGate` | `true` = loop stops after this phase for your review |
 
-## Three Modes
+## Three modes
 
-### Code Mode (`READ-WRITE`)
+**Code** (`READ-WRITE`): For repo changes. Creates feature branches, writes code, runs typecheck/lint/tests, merges back. This is the default.
 
-For making code changes to a repository. The agent creates feature branches, writes code, runs checks, and merges.
+**Infrastructure** (`INFRASTRUCTURE`): For system-level stuff. SSH keys, cloud resources, deployments, config changes. Documents before/after state. Never destroys without verifying first.
 
-**Build gates:** typecheck, lint, unit tests, e2e tests, diff size check
-**Commit format:** `{prefix}: {STORY-ID} - {description}`
-**Example use cases:** feature implementation, refactoring, test coverage, dependency upgrades
+**Research** (`RESEARCH`): Read-only. Gathers information, documents findings, changes nothing. Good for security audits, dependency analysis, architecture reviews.
 
-### Infrastructure Mode (`INFRASTRUCTURE`)
+The mode shapes the CLAUDE.md instructions (safety rails, build gates, workflow). Pick the one that fits.
 
-For system-level changes: SSH keys, cloud resources, deployments, configuration.
+## Voice alerts
 
-**Build gates:** verify action succeeded, document before/after state
-**Safety rails:** no destructive actions without verification, backup before modifying config
-**Example use cases:** server decommission, auth setup, CI/CD configuration, cloud migration
+`monitor.sh` checks progress every 2 minutes and talks to you:
 
-### Research Mode (`RESEARCH`)
+- "Ralph hit a phase gate. Needs your review."
+- "Ralph is blocked. Check progress."
+- "Ralph loop complete."
 
-Read-only analysis. The agent gathers information, documents findings, but makes no changes to the target system.
+Uses a state file so it doesn't repeat itself. Set it up with launchd on macOS:
 
-**Build gates:** verify findings with sources, cross-reference claims
-**Safety rails:** strictly read-only, no modifications
-**Example use cases:** security audit, dependency analysis, architecture review, competitive analysis
-
-## The Monitor (Voice Alerts)
-
-`monitor.sh` checks `progress.txt` every 2 minutes and uses macOS `say` to announce:
-
-- **Phase gate**: "Ralph hit a phase gate. Needs your review."
-- **Blocked**: "Ralph is blocked. Check progress."
-- **Complete**: "Ralph loop complete."
-
-Uses a `.monitor-state` file to avoid repeating the same announcement.
-
-### Setup with launchd (macOS)
-
-```xml
+```bash
+# Create the plist (update the path to your monitor.sh)
+cat > ~/Library/LaunchAgents/com.ralph-monitor.plist << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.yourname.ralph-monitor</string>
+    <string>com.ralph-monitor</string>
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
@@ -218,45 +188,33 @@ Uses a `.monitor-state` file to avoid repeating the same announcement.
     <false/>
 </dict>
 </plist>
+EOF
+
+launchctl load ~/Library/LaunchAgents/com.ralph-monitor.plist
 ```
 
-```bash
-cp your-monitor.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/your-monitor.plist
-```
+Or just run `watch -n 120 ./monitor.sh` in a terminal.
 
-## Advanced: Headless Git Auth
+## Headless git auth
 
-By default, Ralph loops inherit your shell's git auth (SSH agent, credential helper, etc.). If you run loops in a headless context (cron, background process, sandboxed), you need dedicated auth.
-
-`ralph.sh` includes environment-based SSH auth that activates automatically:
-
-```bash
-# These env vars are set inside ralph.sh before launching the agent
-export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/id_ed25519_ralph -o IdentitiesOnly=yes"
-export GIT_CONFIG_COUNT=2
-export GIT_CONFIG_KEY_0="url.git@github.com:.insteadOf"
-export GIT_CONFIG_VALUE_0="https://github.com/"
-export GIT_CONFIG_KEY_1="commit.gpgsign"
-export GIT_CONFIG_VALUE_1="false"
-```
+If you run loops in the background (cron, sandboxed, no GUI), your normal git auth won't work. Ralph handles this with environment variables that only exist inside the loop process. Your interactive git stays untouched.
 
 Setup:
-1. `ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_ralph -C "ralph-headless"`
-2. Add the public key to your GitHub account (Settings > SSH keys)
-3. That's it. `ralph.sh` handles the rest. Your normal interactive git is unaffected.
-
-The `insteadOf` rule transparently rewrites HTTPS remotes to SSH at the transport layer, so you don't need to change any remote URLs.
-
-## Advanced: nono Sandboxing
-
-[nono](https://github.com/anthropics/nono) restricts what the agent can access on your machine. When `ralph.sh` detects nono on PATH, it wraps the agent in a sandbox automatically.
 
 ```bash
-# Install nono
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_ralph -C "ralph-headless"
+# Add the public key to GitHub (Settings → SSH keys)
+```
+
+Then uncomment the headless auth block in `ralph.sh`. It rewrites HTTPS remotes to SSH at the transport layer (no remote URL changes needed) and disables commit signing for the headless context.
+
+## nono sandboxing
+
+[nono](https://github.com/always-further/nono) by [Luke Hinds](https://github.com/lukehinds) (creator of [Sigstore](https://sigstore.dev)) restricts what the agent can touch on your machine. Kernel-enforced isolation using Landlock (Linux) and Seatbelt (macOS). When `ralph.sh` detects nono on PATH, it wraps the agent automatically.
+
+```bash
 brew install nono
 
-# Create a profile
 mkdir -p ~/.config/nono/profiles
 cat > ~/.config/nono/profiles/ralph-loop.json << 'EOF'
 {
@@ -269,45 +227,31 @@ cat > ~/.config/nono/profiles/ralph-loop.json << 'EOF'
 EOF
 ```
 
-The `--no-sandbox` flag bypasses nono when needed:
-```bash
-./ralph.sh --tool claude --no-sandbox 10
-```
+The agent can read and write to the paths you allow. Everything else is blocked at the OS level. `--no-sandbox` bypasses it when you don't need it.
 
-## Related Projects
+## Claude Code skills
 
-- **[snarktank/ralph](https://github.com/snarktank/ralph)**: The original Ralph by Ryan Carson. This project builds on his concept of fresh-context-per-iteration autonomous loops. If you want the simplest possible setup, start there.
-- **[nono](https://github.com/anthropics/nono)**: Anthropic's sandboxing tool for AI agents. Optional but recommended for production loops.
-- **[Claude Code](https://docs.anthropic.com/en/docs/claude-code)**: Anthropic's CLI for Claude. The `--dangerously-skip-permissions` flag enables autonomous operation (required for Ralph loops).
-- **[Amp](https://amp.dev)**: Alternative AI coding tool. Ralph supports both via `--tool amp|claude`.
+You can also install this as a Claude Code skill for in-session loop creation:
 
-## Claude Code Skills Integration
+1. Copy `templates/` into `.claude/skills/create-ralph-loop/` in your project
+2. Reference it in your CLAUDE.md
+3. Type `/create-ralph-loop` in a session to scaffold a new loop interactively
 
-If you use Claude Code, you can install Ralph as a skill for interactive loop creation:
+## Related projects
 
-1. Copy `templates/` into your project's `.claude/skills/create-ralph-loop/`
-2. Add to your project's CLAUDE.md:
-   ```
-   - `/create-ralph-loop`: Scaffold a new Ralph loop with interactive setup
-   ```
-3. Use `/create-ralph-loop` in any Claude Code session to scaffold a new loop with guided prompts
+- [snarktank/ralph](https://github.com/snarktank/ralph): The original by Ryan Carson. Fresh-context-per-iteration autonomous loops. Start here if you want the simplest version.
+- [nono](https://github.com/always-further/nono): OS-level sandboxing for AI agents by Luke Hinds. Optional, recommended for anything running autonomously.
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code): Anthropic's CLI. `--dangerously-skip-permissions` enables autonomous operation (required for Ralph loops).
 
-## FAQ
+## Common questions
 
-**How many iterations should I run?**
-Start with the number of stories + a few extra for failures/retries. A 10-story PRD usually completes in 12-15 iterations. If it hasn't finished, check `progress.txt` for what's going wrong.
+**How many iterations?** Number of stories + a few extra for retries. 10 stories usually finishes in 12-15 iterations.
 
-**What if a story keeps failing?**
-After 3 failed attempts, the agent marks the story as blocked in `progress.txt` and moves to the next one. Review the blocker, fix the underlying issue, and re-run.
+**Story keeps failing?** After 3 attempts, the agent marks it blocked and moves on. Check progress.txt, fix the underlying issue, re-run.
 
-**Can I run multiple loops in parallel?**
-Yes, as long as they work on different branches and don't modify the same files. Each loop is self-contained in its own directory.
+**Multiple loops at once?** Yes. Different branches, different directories, no file conflicts. Each loop is self-contained.
 
-**Does it work with other AI tools?**
-The runner supports Claude Code and Amp out of the box. For other tools, modify the execution block in `ralph.sh` to call your preferred CLI.
-
-**How do I add stories mid-run?**
-Edit `prd.json` directly. Add new stories with `"passes": false` and the correct `priority`. The next iteration will pick them up.
+**Add stories mid-run?** Edit prd.json directly. Set `passes: false`, give it a priority. Next iteration picks it up.
 
 ## License
 
